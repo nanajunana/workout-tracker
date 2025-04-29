@@ -1,0 +1,50 @@
+import requests
+import os
+from datetime import datetime
+import base64
+
+nutritionix_appid = os.environ.get('NUTRITIONIX_APPID')
+nutritionix_api = os.environ.get('NUTRITIONIX_API')
+
+headers = {
+    'x-app-id': nutritionix_appid,
+    'x-app-key': nutritionix_api
+}
+
+url = 'https://trackapi.nutritionix.com/v2/natural/exercise'
+
+input_user = input("What exercise did you do today?: ")
+
+exer_params = {
+    'query': input_user,
+}
+
+response = requests.post(url=url, json=exer_params, headers=headers)
+user_input = response.json()
+
+sheets_username = os.environ.get('SHEETY_USERNAME')
+sheets_password = os.environ.get('SHEETY_PASSWORD')
+credentials = f"{sheets_username}:{sheets_password}"
+encoded_credentials = base64.b64encode(credentials.encode()).decode()
+
+
+sheets_headers = {
+    "Authorization": f"Basic {encoded_credentials}"
+}
+
+time_now = datetime.now().strftime('%H:%M:%S')
+format_date = datetime.now().strftime('%d/%m/%Y')
+sheety_url = os.environ.get('SHEETY_URL')
+
+for exercise in user_input['exercises']:
+    sheets_entry = {
+        "workout": {
+            'date': format_date,
+            'time': time_now,
+            'exercise': exercise['name'].title(),
+            'duration': exercise['duration_min'],
+            'calories': exercise['nf_calories']
+        }
+    }
+
+    sheet_input = requests.post(url=sheety_url, json=sheets_entry, headers=sheets_headers)
